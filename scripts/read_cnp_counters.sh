@@ -1,0 +1,141 @@
+#!/bin/bash
+ 
+ 
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+ 
+ 
+color_en=1
+function get_color ()
+{
+    case $1 in
+    black|30)   echo 30 ;;
+    red|31)     echo 31 ;;
+    green|32)   echo 32 ;;
+    yellow|33)  echo 33 ;;
+    blue|34)    echo 34 ;;
+    magenta|35) echo 35 ;;
+    cyan|36)    echo 36 ;;
+    white|37)   echo 37 ;;
+    *)          echo 0 ;;
+    esac
+}
+ 
+ 
+function print_str_color ()
+{
+    if [ $color_en -eq 1 ] ; then
+        local color=`get_color $2`
+        echo -e -n "\033[${color}m"
+        fi
+        echo -n -e "$1"
+        if [ $color_en -eq 1 ] ; then echo -e -n "\033[0m" ; fi
+}
+ 
+ 
+function get_mst_dev() {
+    mst_dev=`mst status -v | grep $mlx_dev | awk '{print $2}'`
+}
+ 
+ 
+function usage() {
+    echo "  Short script to read CNP counters. Version 1.1"
+    echo "  Usage: read_cnp_counters -d [mlx5_dev] -i [port] (--clear)"
+    echo "  -d  - default is mlx5_0"
+    echo "  -i  - default is port 1"
+    echo "  --clear - clears counters"
+    exit 0
+}
+ 
+ 
+mlx_dev=mlx5_0
+port_num=1
+clearval=""
+ 
+ 
+if [ "$#" -eq 0 ]; then
+    usage
+fi
+ 
+ 
+for arg in "$@"
+do
+    case "$arg" in
+        -h|--help|--h|-v|--version)
+            usage
+            ;;
+        -d)                         p_arg=${arg##"-"} ;;
+        -i)                         p_arg=${arg##"-"} ;;
+        --clear)                    clearval="0" ;;
+       
+         *) case $p_arg in
+            d)              mlx_dev="${arg//,/ }"   ; p_arg=""  ;;
+            i)              port_num="${arg//,/ }"  ; p_arg=""  ;;
+            *)              print_str_color " Error  " red ; echo " - bad params"; exit;;
+            esac
+    esac
+done
+ 
+ 
+get_mst_dev
+if [[ "$mst_dev" != *"pciconf"* ]] || [[ "NA" == "$__MST_DEV" ]] ; then
+    mst start > /dev/null 2>&1
+    get_mst_dev
+    if [[ "$mst_dev" != *"pciconf"* ]] ; then
+        print_str_color " Error  " red ; echo " - could not find mst device for device $mlx_dev, is OFED driver up?"
+        exit 1
+    fi
+fi
+ 
+ 
+if [[ "$mst_dev" == *".1"* ]] ; then
+    let port_num+=1
+fi
+portid=$(($port_num - 1))
+ 
+ 
+if [ $portid -gt 1 ] ; then
+    print_str_color " Error  " red ; echo " - mlx5_dev/port_num mismatch"
+    exit 1
+fi
+ 
+ 
+case $mst_dev in
+*4115*|*4117*|*4119*|*4121* )
+    cr_address_sent_high=$((0xf38 + portid*0x60))
+    cr_address_sent_last=$((0xf48 + portid*0x60))
+    cr_address_sent_low=$((0x370b8 + portid*0x400))
+    cr_address_hndl_high=$((0xf34 + portid*0x60))
+    cr_address_hndl_last=$((0xf44 + portid*0x60))
+    cr_address_hndl_low=$((0x26bd4 + portid*8))
+    ;;
+* )
+    print_str_color " Error  " red ; echo " - unsupported mst device"
+    exit 1
+    ;;
+esac
+ 
+ 
+if [ -n $clearval ] ; then
+    dontcare=`mcra $mst_dev $cr_address_sent_last $clearval`
+    dontcare=`mcra $mst_dev $cr_address_hndl_last $clearval`
+fi
+ 
+ 
+cnps_sent_high=`mcra $mst_dev $cr_address_sent_high $clearval`
+cnps_hndl_high=`mcra $mst_dev $cr_address_hndl_high $clearval`
+cnps_sent_low=`mcra $mst_dev $cr_address_sent_low $clearval`
+cnps_hndl_low=`mcra $mst_dev $cr_address_hndl_low $clearval`
+ 
+ 
+if [ -z $clearval ] ; then
+    cnps_sent=$((`echo $(($cnps_sent_high<<32))` + $cnps_sent_low))
+    cnps_hndl=$((`echo $(($cnps_hndl_high<<32))` + $cnps_hndl_low))
+    printf "Total CNPs sent  (by receiver): 0x%llx\n" $cnps_sent
+    printf "Total CNPs handled (by sender): 0x%llx\n" $cnps_hndl
+fi
+ 
+ 
+exit 0

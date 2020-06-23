@@ -1,0 +1,152 @@
+#!/bin/bash
+tmp_str=""
+# change bps to G/M unit string
+# the return string is $tmp_str
+function stringBps()
+{
+	if [[ $1 -gt 1073741824 ]];then
+		tmp_str=$(echo $1 | awk '{print $1/131072000 " Gbps"}')
+	else
+		tmp_str=$(echo $1 | awk '{print $1/131072 " Mbps"}')
+	fi
+}
+
+
+echo "----------------------"
+echo "$(date "+%Y-%m-%d %T")"
+eth="p3p1"
+eth="p3p2"
+TX1prerdma=$(ethtool -S p3p1 | grep tx_prio5_bytes | awk '{print $2}')
+RX1prerdma=$(ethtool -S p3p1 | grep rx_prio5_bytes | awk '{print $2}')
+TX2prerdma=$(ethtool -S p3p2 | grep tx_prio5_bytes | awk '{print $2}')
+RX2prerdma=$(ethtool -S p3p2 | grep rx_prio5_bytes | awk '{print $2}')
+TX1pretcp=$(ethtool -S p3p1 | grep tx_prio0_bytes | awk '{print $2}')
+RX1pretcp=$(ethtool -S p3p1 | grep rx_prio0_bytes | awk '{print $2}')
+TX2pretcp=$(ethtool -S p3p2 | grep tx_prio0_bytes | awk '{print $2}')
+RX2pretcp=$(ethtool -S p3p2 | grep rx_prio0_bytes | awk '{print $2}')
+CNPpre=$(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/np_cnp_sent)
+Txpause_p3p1_pre=$(ethtool -S p3p1 | grep tx_prio5_pause: | awk '{print $2}')
+Txpause_p3p2_pre=$(ethtool -S p3p2 | grep tx_prio5_pause: | awk '{print $2}')
+Rxpause_p3p1_pre=$(ethtool -S p3p1 | grep rx_prio5_pause: | awk '{print $2}')
+Rxpause_p3p2_pre=$(ethtool -S p3p2 | grep rx_prio5_pause: | awk '{print $2}')
+sleep 1
+TX1nextrdma=$(ethtool -S p3p1 | grep tx_prio5_bytes | awk '{print $2}')
+RX1nextrdma=$(ethtool -S p3p1 | grep rx_prio5_bytes | awk '{print $2}')
+TX2nextrdma=$(ethtool -S p3p2 | grep tx_prio5_bytes | awk '{print $2}')
+RX2nextrdma=$(ethtool -S p3p2 | grep rx_prio5_bytes | awk '{print $2}')
+TX1nexttcp=$(ethtool -S p3p1 | grep tx_prio0_bytes | awk '{print $2}')
+RX1nexttcp=$(ethtool -S p3p1 | grep rx_prio0_bytes | awk '{print $2}')
+TX2nexttcp=$(ethtool -S p3p2 | grep tx_prio0_bytes | awk '{print $2}')
+RX2nexttcp=$(ethtool -S p3p2 | grep rx_prio0_bytes | awk '{print $2}')
+CNPnext=$(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/np_cnp_sent)
+Txpause_p3p1_next=$(ethtool -S p3p1 | grep tx_prio5_pause: | awk '{print $2}')
+Txpause_p3p2_next=$(ethtool -S p3p2 | grep tx_prio5_pause: | awk '{print $2}')
+Rxpause_p3p1_next=$(ethtool -S p3p1 | grep rx_prio5_pause: | awk '{print $2}')
+Rxpause_p3p2_next=$(ethtool -S p3p2 | grep rx_prio5_pause: | awk '{print $2}')
+
+
+TX1rdma=$((${TX1nextrdma}-${TX1prerdma}))
+if [[ $TX1rdma -gt 1073741824 ]];then
+strTX1rdma=$(echo $TX1rdma | awk '{print $1/131072000 " Gbps"}')
+else
+strTX1rdma=$(echo $TX1rdma | awk '{print $1/131072 " Mbps"}')
+fi
+echo "rdma_tx_rate_p3p1: "$strTX1rdma""
+
+RX1rdma=$((${RX1nextrdma}-${RX1prerdma}))
+if [[ $RX1rdma -gt 1073741824 ]];then
+echo "rdma_rx_rate_p3p1: " $(echo $RX1rdma | awk '{print $1/131072000 " Gbps"}')
+else
+echo "rdma_rx_rate_p3p1: " $(echo $RX1rdma | awk '{print $1/131072 " Mbps"}')
+fi
+
+TX2rdma=$((${TX2nextrdma}-${TX2prerdma}))
+if [[ $TX2rdma -gt 1073741824 ]];then
+echo "rdma_tx_rate_p3p2: " $(echo $TX2rdma | awk '{print $1/131072000 " Gbps"}')
+else
+echo "rdma_tx_rate_p3p2: " $(echo $TX2rdma | awk '{print $1/131072 " Mbps"}')
+fi
+
+RX2rdma=$((${RX2nextrdma}-${RX2prerdma}))
+if [[ $RX2rdma -gt 1073741824 ]];then
+echo "rdma_rx_rate_p3p2: " $(echo $RX2rdma | awk '{print $1/131072000 " Gbps"}')
+else
+echo "rdma_rx_rate_p3p2: " $(echo $RX2rdma | awk '{print $1/131072 " Mbps"}')
+fi
+
+
+TX1tcp=$((${TX1nexttcp}-${TX1pretcp}))
+if [[ $TX1tcp -gt 1073741824 ]];then
+echo "tcp_tx_rate_p3p1: "$(echo $TX1tcp | awk '{print $1/131072000 " Gbps"}')
+else
+echo "tcp_tx_rate_p3p1: "$(echo $TX1tcp | awk '{print $1/131072 " Mbps"}')
+fi
+
+RX1tcp=$((${RX1nexttcp}-${RX1pretcp}))
+if [[ $RX1tcp -gt 1073741824 ]];then
+echo "tcp_rx_rate_p3p1: "$(echo $RX1tcp | awk '{print $1/131072000 " Gbps"}')
+else
+echo "tcp_rx_rate_p3p1: "$(echo $RX1tcp | awk '{print $1/131072 " Mbps"}')
+fi
+
+TX2tcp=$((${TX2nexttcp}-${TX2pretcp}))
+if [[ $TX2tcp -gt 1073741824 ]];then
+echo "tcp_tx_rate_p3p2: "$(echo $TX2tcp | awk '{print $1/131072000 " Gbps"}')
+else
+echo "tcp_tx_rate_p3p2: "$(echo $TX2tcp | awk '{print $1/131072 " Mbps"}')
+fi
+
+RX2tcp=$((${RX2nexttcp}-${RX2pretcp}))
+if [[ $RX2tcp -gt 1073741824 ]];then
+echo "tcp_rx_rate_p3p2: " $(echo $RX2tcp | awk '{print $1/131072000 " Gbps"}')
+else
+echo "tcp_rx_rate_p3p2: " $(echo $RX2tcp | awk '{print $1/131072 " Mbps"}')
+fi
+
+stringBps $(($TX1rdma + $TX2rdma))
+echo "RDMA_Tx_rate: $tmp_str"
+
+stringBps $((${RX1rdma}+${RX2rdma}))
+echo "RDMA_Rx_rate: $tmp_str"
+
+stringBps $((${TX1tcp}+${TX2tcp}))
+echo "TCP_Tx_rate: $tmp_str"
+
+stringBps $((${RX1tcp}+${RX2tcp}))
+echo "TCP_Rx_rate: $tmp_str"
+
+PFC_txrate_p3p1=$((${Txpause_p3p1_next}-${Txpause_p3p1_pre}))
+echo "PFC_txrate_p3p1: " $(echo $PFC_txrate_p3p1 "/s")
+PFC_rxrate_p3p1=$((${Rxpause_p3p1_next}-${Rxpause_p3p1_pre}))
+echo "PFC_rxrate_p3p1: " $(echo $PFC_rxrate_p3p1 "/s")
+PFC_txrate_p3p2=$((${Txpause_p3p2_next}-${Txpause_p3p2_pre}))
+echo "PFC_txrate_p3p2: " $(echo $PFC_txrate_p3p2 "/s")
+PFC_rxrate_p3p2=$((${Rxpause_p3p2_next}-${Rxpause_p3p2_pre}))
+echo "PFC_rxrate_p3p2: " $(echo $PFC_rxrate_p3p2 "/s")
+
+
+cnprate=$((${CNPnext}-${CNPpre}))
+echo "CNP rate :" $(echo $cnprate "/s")
+
+
+#Tx_pause_p3p1=$(ethtool -S p3p1 | grep tx_prio5_pause: | awk '{print $2}')
+#Tx_pause_p3p2=$(ethtool -S p3p2 | grep tx_prio5_pause: | awk '{print $2}')
+#echo "tx_pause: $((${Tx_pause_p3p1}+${Tx_pause_p3p2}))"
+#Rx_pause_p3p1=$(ethtool -S p3p1 | grep rx_prio5_pause: | awk '{print $2}')
+#Rx_pause_p3p2=$(ethtool -S p3p2 | grep rx_prio5_pause: | awk '{print $2}')
+#echo "rx_pause: $((${Rx_pause_p3p1}+${Rx_pause_p3p2}))"
+#Tx_pause_duration_p3p1=$(ethtool -S p3p1 | grep tx_prio5_pause_duration | awk '{print $2}')
+#Tx_pause_duration_p3p2=$(ethtool -S p3p2 | grep tx_prio5_pause_duration | awk '{print $2}')
+#echo "tx_pause_duration: $((${Tx_pause_duration_p3p1}+${Tx_pause_duration_p3p2}))"
+#Rx_pause_duration_p3p1=$(ethtool -S p3p1 | grep rx_prio5_pause_duration | awk '{print $2}')
+#Rx_pause_duration_p3p2=$(ethtool -S p3p2 | grep rx_prio5_pause_duration | awk '{print $2}')
+#echo "rx_pause_duration: $((${Rx_pause_duration_p3p1}+${Rx_pause_duration_p3p2}))"
+
+echo "np_cnp_sent: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/np_cnp_sent)"
+echo "rp_cnp_handled: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/rp_cnp_handled)"
+echo "num_of_qp: $(ls -l /sys/kernel/debug/mlx5/0000\:06\:00.0/QPs |grep "^d"|wc -l)"
+echo "np_ecn_marked: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/np_ecn_marked_roce_packets)"
+echo "rp_cnp_ignored: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/rp_cnp_ignored)"
+echo "out_of_buffer: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/out_of_buffer)"
+echo "out_of_seq: $(cat /sys/class/infiniband/mlx5_bond_0/ports/1/hw_counters/out_of_sequence)"
+echo "free_mem: $(free -k | grep "Mem:" |awk '{print $4}') KB"
